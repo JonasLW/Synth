@@ -7,6 +7,8 @@ import time
 import matplotlib.pyplot as plt
 from scipy import signal
 
+# MAKING SURE I CAN PUSH TO REMOTE
+
 os.system('xset r off')
 
 BITRATE = 16000     #number of frames per second/frameset.      
