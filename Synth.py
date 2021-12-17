@@ -7,6 +7,8 @@ import time
 import matplotlib.pyplot as plt
 from scipy import signal
 
+# A BIG FAT COMMENT THAT'S NOT SUPPOSED TO BE IN MAIN BRANCH
+
 os.system('xset r off')
 
 BITRATE = 16000     #number of frames per second/frameset.      
