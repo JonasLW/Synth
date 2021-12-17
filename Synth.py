@@ -46,6 +46,7 @@ try:
     """
 
     default_scale = np.copy(major_scale)  #TODO: set this by an option
+    alt_scale = np.copy(minor_scale)
 
     scale = np.copy(default_scale)
     scale_degree = 0
@@ -129,6 +130,7 @@ try:
         global just_pressed
         global just_released
         global scale
+        global alt_scale
         global major_scale
         global flat_scale
         global sharp_scale
@@ -139,38 +141,22 @@ try:
         # Script does not enter this function when pressing 4 or 8 with 3+ chord tones playing
         #    keycodes not working: 13, 17, 18, 31, 32
 
-        if 9 < event.keycode < 18:
-            # TODO: Make sure currently playing note changes. Half done. Clicks a little. 4 and 8 not always working
-            scale_degree = event.keycode - 10
-            chord_freqs = set_chord_freqs(scale_degree)
-            active_freqs = chord_freqs*(active_freqs > 1)
-        elif event.keycode == 41:
-            # Key: f - flat tone
-            scale = scale/ET_RATIO
-            chord_freqs = set_chord_freqs(scale_degree)
-            active_freqs = chord_freqs*(active_freqs > 1)
-        elif event.keycode == 42:
-            # Key: g - sharp tone
-            scale = scale*ET_RATIO
-            chord_freqs = set_chord_freqs(scale_degree)
-            active_freqs = chord_freqs*(active_freqs > 1)
-        elif 43 < event.keycode < 49:
+        if 43 < event.keycode < 49:
             index = event.keycode - 44
             active_freqs[index] = chord_freqs[index]
             just_pressed[index] = 1
-        elif event.keycode == 50:
-            # TODO: Use a better kind of comparison. This is not compatible with the way I'm doing sharps and flats
-            if (scale == major_scale).all():
-                scale = minor_scale
-            elif (scale == minor_scale).all():
-                scale = major_scale
-            chord_freqs = set_chord_freqs(scale_degree)
-            active_freqs = chord_freqs*(active_freqs > 1)
-        elif event.keycode == 66:
-            if (scale == major_scale).all():
-                scale = minor_scale
-            elif (scale == minor_scale).all():
-                scale = major_scale
+        else:
+            if 9 < event.keycode < 18:
+                # TODO: Make sure currently playing note changes. Half done. Clicks a little. 4 and 8 not always working
+                scale_degree = event.keycode - 10
+            elif event.keycode == 41:
+                # Key: f - flat tone needs to be done in a better way. Not compatible with major/minor changing
+                scale = scale/ET_RATIO
+            elif event.keycode == 42:
+                # Key: g - sharp tone
+                scale = scale*ET_RATIO
+            elif event.keycode == 50 or event.keycode == 66:
+                scale, alt_scale = alt_scale, scale
             chord_freqs = set_chord_freqs(scale_degree)
             active_freqs = chord_freqs*(active_freqs > 1)
 
@@ -178,6 +164,7 @@ try:
         global active_freqs
         global just_released
         global scale
+        global alt_scale
         global major_scale
         global scale_degree
         global active_freqs
@@ -186,20 +173,13 @@ try:
         if event.keycode == 41:
             # Key: f - release flat
             scale = scale*ET_RATIO
-            chord_freqs = set_chord_freqs(scale_degree)
-            active_freqs = chord_freqs*(active_freqs > 1)
         elif event.keycode == 42:
             # Key: g - release sharp
             scale = scale/ET_RATIO
-            chord_freqs = set_chord_freqs(scale_degree)
-            active_freqs = chord_freqs*(active_freqs > 1)
         elif event.keycode == 50:
-            if (scale == major_scale).all():
-                scale = minor_scale
-            elif (scale == minor_scale).all():
-                scale = major_scale
-            chord_freqs = set_chord_freqs(scale_degree)
-            active_freqs = chord_freqs*(active_freqs > 1)
+            scale, alt_scale = alt_scale, scale
+        chord_freqs = set_chord_freqs(scale_degree)
+        active_freqs = chord_freqs*(active_freqs > 1)
 
         index = event.keycode - 44
         try:
