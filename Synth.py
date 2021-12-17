@@ -67,17 +67,53 @@ try:
     save_data_0 = np.empty(BUFFER_FRAMES_NR)
     save_data_1 = np.empty(BUFFER_FRAMES_NR)
     count = 0
+    mixed_flag = False
 
     def array_mixing():
         # TODO: Use numpy for mixing to speed up
         # Causes clipping for some reason
-        #data_array = np.copy(no_sound_a)
         phase = active_freqs*BUFFER_LENGTH*count
         ramp_array = just_pressed*ramp_up + just_released*ramp_down + 1
         data_array = np.sin(active_freqs*t + phase)*ramp_array
         data = np.sum(data_array, axis=0)
         active_freqs = active_freqs*(just_released != 1)
         just_released = np.zeros((5,1))
+
+
+    def mixing():
+        global data
+        global just_pressed
+        global just_released
+        global count
+        global no_sound
+        global active_freqs
+        global root
+        global mixed_flag
+
+        root.after(5, mixing)
+        if mixed_flag:
+            pass
+        else:
+            #start = time.perf_counter()
+            #print(f"mixing at {start:.5f}")
+            mixed_flag = True
+            temp_data = np.copy(no_sound)
+            for i, f in enumerate(active_freqs):
+                phase = f*BUFFER_LENGTH*count%(2*np.pi)
+                if just_pressed[i]:
+                    temp_data += np.sin(f*t + phase)*ramp_up
+                    just_pressed[i] = 0
+                elif just_released[i]:
+                    temp_data += np.sin(f*t + phase)*ramp_down
+                    just_released[i] = 0
+                    active_freqs[i] = 0
+                else:
+                    temp_data += np.sin(f*t + phase)
+            max_amplitude = (np.amax(np.square(temp_data), initial=1))**0.5
+            temp_data /= max_amplitude
+            data = temp_data.astype(np.float32).tobytes()
+            #end = time.perf_counter()
+            #print(f"mixed at {end:.5f} \n")
 
 
     def callback(in_data, frame_count, time_info, status):
@@ -92,8 +128,14 @@ try:
         global ramp_down
         global save_data_0
         global save_data_1
+        global mixed_flag
+        # TODO: Mixing should be done while stream is playing, not after it has called callback
+        # Note, if so the phase can not be determined in the mixing stage
 
         #last_data = data
+        #call = time.perf_counter()
+        #print(f"calling at {call:.5f} --------------------------------------------\n")
+        """
         data = np.copy(no_sound)
         for i, f in enumerate(active_freqs):
             phase = f*BUFFER_LENGTH*count%(2*np.pi)
@@ -108,6 +150,7 @@ try:
                 data += np.sin(f*t + phase)
         max_amplitude = (np.amax(np.square(data), initial=1))**0.5
         frame = data/max_amplitude
+        """
         #data = data/max_amplitude
         #frame = data[0 : frame_count]
         """
@@ -115,7 +158,10 @@ try:
             save_data_0 = last_data
             save_data_1 = data
         """
-        return_data = frame.astype(np.float32).tobytes()
+        #frame = data
+        #return_data = frame.astype(np.float32).tobytes()
+        return_data = data
+        mixed_flag = False
         count += 1
         return (return_data, pyaudio.paContinue)
 
@@ -127,6 +173,7 @@ try:
         return freqs
 
     def key_down(event):
+        global data
         global active_freqs
         global just_pressed
         global just_released
@@ -177,7 +224,9 @@ try:
             active_freqs = chord_freqs*(active_freqs > 1)
 
     def key_up(event):
+        global data
         global active_freqs
+        global just_pressed
         global just_released
         global scale
         global major_scale
@@ -223,6 +272,8 @@ try:
                     stream_callback=callback,
                     frames_per_buffer=BUFFER_FRAMES_NR)
 
+    #stream.start_stream()
+    mixing()
     root.mainloop()
     stream.stop_stream()
     stream.close()
