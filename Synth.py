@@ -29,7 +29,7 @@ try:
     PyAudio = pyaudio.PyAudio     #initialize pyaudio
 
 
-    base_freq = 261.63  # TODO: consider changing to angular frequencies for performance
+    base_freq = 2*np.pi*261.63  # Angular frequencies for performance, this this by option
     semitones = np.empty(12)
     for i in range(12):
         semitones[i] = base_freq*ET_RATIO**i
@@ -38,11 +38,12 @@ try:
     major_scale = np.concatenate((major_scale, 2*major_scale, 4*major_scale))
     minor_scale = np.copy(semitones[np.array([0,2,3,5,7,8,10])])
     minor_scale = np.concatenate((minor_scale, 2*minor_scale, 4*minor_scale))
-    
+    """ 
     flat_maj_scale = major_scale/ET_RATIO
     sharp_maj_scale = major_scale*ET_RATIO
     flat_m_scale = minor_scale/ET_RATIO
     sharp_m_scale = minor_scale*ET_RATIO
+    """
 
     default_scale = np.copy(major_scale)  #TODO: set this by an option
 
@@ -93,20 +94,21 @@ try:
         global save_data_1
 
         #last_data = data
+        start_time = time.perf_counter()
         
         data = np.copy(no_sound)
         for i, f in enumerate(active_freqs):
-            phase = 2*np.pi*f*BUFFER_LENGTH*count%(2*np.pi)
+            phase = f*BUFFER_LENGTH*count%(2*np.pi)
             if just_pressed[i]:
-                data += np.sin(2*np.pi*f*t + phase)*ramp_up
+                data += np.sin(f*t + phase)*ramp_up
                 just_pressed[i] = 0
             elif just_released[i]:
-                data += np.sin(2*np.pi*f*t + phase)*ramp_down
+                data += np.sin(f*t + phase)*ramp_down
                 just_released[i] = 0
                 active_freqs[i] = 0
             else:
-                data += np.sin(2*np.pi*f*t + phase)
-        max_amplitude = max(np.amax(data, initial=1), np.amax(-data, initial=1))
+                data += np.sin(f*t + phase)
+        max_amplitude = (np.amax(np.square(data), initial=1))**0.5
         frame = data/max_amplitude
         #data = data/max_amplitude
         #frame = data[0 : frame_count]
@@ -117,6 +119,9 @@ try:
         """
         return_data = frame.astype(np.float32).tobytes()
         count += 1
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+        #print(f"Execution time: {execution_time:.6f}")
         return (return_data, pyaudio.paContinue)
 
     def set_chord_freqs(degree):
@@ -137,7 +142,9 @@ try:
         global scale_degree
         global chord_freqs
         # TODO: Add button for sharp and flat notes. Half done. not quite working smoothly
-        # TODO: Add button for minor scale
+        # TODO: Change to switch-case?
+        # Script does not enter this function when pressing 4 or 8 with 3+ chord tones playing
+        #    keycodes not working: 13, 17, 18, 31, 32
 
         if 9 < event.keycode < 18:
             # TODO: Make sure currently playing note changes. Half done. Clicks a little. 4 and 8 not always working
