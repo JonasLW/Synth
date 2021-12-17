@@ -50,30 +50,28 @@ try:
     scale = np.copy(default_scale)
     scale_degree = 0
 
-    active_freqs = np.zeros((5,1))
-    just_pressed = np.zeros((5,1))
-    just_released = np.zeros((5,1))
-    ramp_up = np.tile(np.linspace(-1, 0, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32), (5,1))
-    ramp_down = np.tile(np.linspace(0, -1, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32), (5,1))
+    active_freqs = np.zeros(5)  #np.zeros((5,1))
+    just_pressed = np.zeros(5)  #np.zeros((5,1))
+    just_released = np.zeros(5)  #np.zeros((5,1))
+    ramp_up = np.linspace(0, 1, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile((5,1))
+    ramp_down = np.linspace(1, 0, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile(5,1)
 
-    t = np.tile(np.linspace(0, BUFFER_LENGTH, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32), (5,1))
+    t = np.linspace(0, BUFFER_LENGTH, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile(5,1)
 
     no_sound = np.zeros(BUFFER_FRAMES_NR, dtype=np.float32)
-    no_sound_a = np.tile(no_sound, (5,1))
+    #no_sound_a = np.tile(no_sound, (5,1))
     data = no_sound
 
     save_data_0 = np.empty(BUFFER_FRAMES_NR)
     save_data_1 = np.empty(BUFFER_FRAMES_NR)
     count = 0
-    start_time = time.perf_counter()
-    end_time = time.perf_counter()
 
     def array_mixing():
         # TODO: Use numpy for mixing to speed up
         # Causes clipping for some reason
         #data_array = np.copy(no_sound_a)
         phase = active_freqs*BUFFER_LENGTH*count
-        ramp_array = 1 + just_pressed*ramp_up + just_released*ramp_down
+        ramp_array = just_pressed*ramp_up + just_released*ramp_down + 1
         data_array = np.sin(active_freqs*t + phase)*ramp_array
         data = np.sum(data_array, axis=0)
         active_freqs = active_freqs*(just_released != 1)
@@ -92,18 +90,8 @@ try:
         global ramp_down
         global save_data_0
         global save_data_1
-        global start_time
-        global end_time
 
         #last_data = data
-        phase = active_freqs*BUFFER_LENGTH*count
-        ramp_array = just_pressed*ramp_up + just_released*ramp_down + 1
-        data_array = np.sin(active_freqs*t + phase)*ramp_array
-        data = np.sum(data_array, axis=0)
-        active_freqs = active_freqs*(just_released != 1)
-        just_released = np.zeros((5,1))
-        """
-        
         data = np.copy(no_sound)
         for i, f in enumerate(active_freqs):
             phase = f*BUFFER_LENGTH*count%(2*np.pi)
@@ -116,7 +104,6 @@ try:
                 active_freqs[i] = 0
             else:
                 data += np.sin(f*t + phase)
-        """
         max_amplitude = (np.amax(np.square(data), initial=1))**0.5
         frame = data/max_amplitude
         #data = data/max_amplitude
