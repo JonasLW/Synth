@@ -287,7 +287,7 @@ try:
                     output=True,
                     stream_callback=callback,
                     frames_per_buffer=BUFFER_FRAMES_NR)
-    mixing(sinewave)
+    mixing(harmonics)
     root.mainloop()
     stream.stop_stream()
     stream.close()
