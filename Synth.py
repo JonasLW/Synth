@@ -7,9 +7,9 @@ import time
 import matplotlib.pyplot as plt
 from scipy import signal
 
-# TODO: Let user play tones between chord tones with i, o, p, å,
 # TODO: Try a class-based system
-# TODO: Shift and capslock currently only work if chord buttons are pressed down
+# TODO: Shift and capslock currently only work if chord buttons are pressed down. Due to using keysym as identifier. Use keycodes
+# TODO: Fix crackling when user presses a second key
 
 os.system('xset r off')
 
@@ -20,8 +20,56 @@ ET_RATIO = 2**(1/12)  # Semitone ratio for equal temperament
 
 # Dictionaries for key presses. Should use key codes instead of key symbols since capslock changes symbol. Should be set programatically
 key_dict_scale = {"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7}
-key_dict_chord = {"j":0,"k":1,"l":2,"oslash":3,"ae":4}
+key_dict_chord = {"j":0,"i":1,"k":2,"o":3,"l":4,"p":5,"oslash":6,"aring":7,"ae":8}
 key_dict_misc = {"f":0,"g":1,"Shift_L":2,"Caps_Lock":3}
+
+
+# Setting up dictionaries with correct keycodes -------------------------
+counter = 0
+keycodes = []
+values = []
+
+def get_keycode(event):
+    global keycodes
+    keycodes.append(event.keycode)
+
+def standard_settings():
+    global keycodes
+    global values
+    global key_dict_scale
+    global key_dict_chord
+    global key_dict_misc
+
+    for key in key_dict_scale.keys():
+        values.append(key_dict_scale[key])
+        temp.event_generate(f"<Key-{key}>")
+    key_dict_scale = dict(zip(keycodes, values))
+    keycodes = []
+    values = []
+    for key in key_dict_chord.keys():
+        values.append(key_dict_chord[key])
+        temp.event_generate(f"<Key-{key}>")
+    key_dict_chord = dict(zip(keycodes, values))
+    keycodes = []
+    values = []
+    for key in key_dict_misc.keys():
+        values.append(key_dict_misc[key])
+        temp.event_generate(f"<Key-{key}>")
+    key_dict_misc = dict(zip(keycodes, values))
+    temp.destroy()
+
+temp = tk.Tk()
+temp.minsize(width=200, height=200)
+temp.title("Settings")
+temp.configure(bg="black", width=500, height=500)
+temp.bind("<Key>", get_keycode)
+button_1 = tk.Button(temp, height=1, width=10, text="Standard keys", bg="blue", fg="white", command=standard_settings)
+button_2 = tk.Button(temp, height=1, width=10, text="Custom keys", bg="blue", fg="white",  command=temp.destroy)
+button_1.pack(pady=30)
+button_2.pack()
+temp.mainloop()
+
+# ^ Setting up dictionaries with correct keycodes ---------------------------
 
 try:
     # Setting up tkinter
@@ -60,9 +108,9 @@ try:
     scale = np.copy(default_scale)
     scale_degree = 0
 
-    active_freqs = np.zeros(5)  #np.zeros((5,1))
-    just_pressed = np.zeros(5)  #np.zeros((5,1))
-    just_released = np.zeros(5)  #np.zeros((5,1))
+    active_freqs = np.zeros(9)  #np.zeros((5,1))
+    just_pressed = np.zeros(9)  #np.zeros((5,1))
+    just_released = np.zeros(9)  #np.zeros((5,1))
     ramp_up = np.linspace(0, 1, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile((5,1))
     ramp_down = np.linspace(1, 0, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile(5,1)
 
@@ -109,10 +157,10 @@ try:
             mixed_flag = True
             temp_data = np.copy(no_sound)
             for i, f in enumerate(active_freqs):
+                if f < 10:
+                    continue
                 phase = f*BUFFER_LENGTH*count%(2*np.pi)
-                rel_intensity = 1
-                if f > 10:
-                    rel_intensity = f/base_freq  # In order for all notes to play at same decibel
+                rel_intensity = f/base_freq  # In order for all notes to play at same decibel
                 if just_pressed[i]:
                     temp_data += np.sin(f*t + phase)*ramp_up/rel_intensity
                     just_pressed[i] = 0
@@ -122,7 +170,7 @@ try:
                     active_freqs[i] = 0
                 else:
                     temp_data += np.sin(f*t + phase)/rel_intensity
-            scaling_factor = max(1, np.sum(active_freqs > 10))
+            scaling_factor = max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
             temp_data = 0.8*temp_data/scaling_factor
             if temp_data[100] > 0.5:
                 save_data_0 = np.copy(save_data_1)
@@ -144,9 +192,7 @@ try:
 
     def set_chord_freqs(degree):
         global scale
-        freqs = np.empty(5)
-        for i in range(5):
-            freqs[i] = scale[degree + 2*i]
+        freqs = scale[degree : degree+9]
         return freqs
 
     def key_down(event):
@@ -163,9 +209,9 @@ try:
         # TODO: Add button for sharp and flat notes. Half done. not quite working smoothly
         # TODO: Change to switch-case?
         # Script does not enter this function when pressing 4 or 8 with 3+ chord tones playing
-        #    keycodes not working: 13, 17, 18, 31, 32
+        # Holding shift changes key symbol, thus minor is not working
 
-        key = event.keysym
+        key = event.keycode
         if key in key_dict_chord:
             index = key_dict_chord[key]
             active_freqs[index] = chord_freqs[index]
@@ -195,16 +241,16 @@ try:
         global active_freqs
         global chord_freqs
 
-        key = event.keysym
+        key = event.keycode
         if key in key_dict_chord:
             index = key_dict_chord[key]
             just_released[index] = 1
         elif key in key_dict_misc:
             action = key_dict_misc[key]
             if action == 0:
-                scale = scale/ET_RATIO
-            elif action == 1:
                 scale = scale*ET_RATIO
+            elif action == 1:
+                scale = scale/ET_RATIO
             elif action == 2:
                 scale, alt_scale = alt_scale, scale
             chord_freqs = set_chord_freqs(scale_degree)
