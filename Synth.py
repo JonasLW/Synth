@@ -9,7 +9,7 @@ from scipy import signal
 
 # TODO: Let user play tones between chord tones with i, o, p, å,
 # TODO: Try a class-based system
-# TODO: Scale amplitudes by frequency to compensate for intensity
+# TODO: Shift and capslock currently only work if chord buttons are pressed down
 
 os.system('xset r off')
 
@@ -110,15 +110,18 @@ try:
             temp_data = np.copy(no_sound)
             for i, f in enumerate(active_freqs):
                 phase = f*BUFFER_LENGTH*count%(2*np.pi)
+                rel_intensity = 1
+                if f > 10:
+                    rel_intensity = f/base_freq  # In order for all notes to play at same decibel
                 if just_pressed[i]:
-                    temp_data += np.sin(f*t + phase)*ramp_up
+                    temp_data += np.sin(f*t + phase)*ramp_up/rel_intensity
                     just_pressed[i] = 0
                 elif just_released[i]:
-                    temp_data += np.sin(f*t + phase)*ramp_down
+                    temp_data += np.sin(f*t + phase)*ramp_down/rel_intensity
                     just_released[i] = 0
                     active_freqs[i] = 0
                 else:
-                    temp_data += np.sin(f*t + phase)
+                    temp_data += np.sin(f*t + phase)/rel_intensity
             scaling_factor = max(1, np.sum(active_freqs > 10))
             temp_data = 0.8*temp_data/scaling_factor
             if temp_data[100] > 0.5:
