@@ -7,6 +7,10 @@ import time
 import matplotlib.pyplot as plt
 from scipy import signal
 
+# TODO: Let user play tones between chord tones with i, o, p, å,
+# TODO: Try a class-based system
+# TODO: Scale amplitudes by frequency to compensate for intensity
+
 os.system('xset r off')
 
 BITRATE = 16000     #number of frames per second/frameset.      
@@ -70,6 +74,7 @@ try:
 
     save_data_0 = np.empty(BUFFER_FRAMES_NR)
     save_data_1 = np.empty(BUFFER_FRAMES_NR)
+    mixed_flag = False
     count = 0
 
     def array_mixing():
@@ -83,43 +88,54 @@ try:
         active_freqs = active_freqs*(just_released != 1)
         just_released = np.zeros((5,1))
 
-
-    def callback(in_data, frame_count, time_info, status):
+    def mixing():
         global data
-        global active_freqs
-        global t
-        global count
-        global no_sound
         global just_pressed
         global just_released
-        global ramp_up
-        global ramp_down
+        global count
+        global no_sound
+        global active_freqs
+        global root
+        global mixed_flag
         global save_data_0
         global save_data_1
 
-        #last_data = data
-        data = np.copy(no_sound)
-        for i, f in enumerate(active_freqs):
-            phase = f*BUFFER_LENGTH*count%(2*np.pi)
-            if just_pressed[i]:
-                data += np.sin(f*t + phase)*ramp_up
-                just_pressed[i] = 0
-            elif just_released[i]:
-                data += np.sin(f*t + phase)*ramp_down
-                just_released[i] = 0
-                active_freqs[i] = 0
-            else:
-                data += np.sin(f*t + phase)
-        max_amplitude = (np.amax(np.square(data), initial=1))**0.5
-        frame = data/max_amplitude
-        #data = data/max_amplitude
-        #frame = data[0 : frame_count]
-        """
-        if frame[100] > 0.5:
-            save_data_0 = last_data
-            save_data_1 = data
-        """
-        return_data = frame.astype(np.float32).tobytes()
+        root.after(5, mixing)
+        if mixed_flag:
+            pass
+        else:
+            #start = time.perf_counter()
+            #print(f"mixing at {start:.5f}")
+            mixed_flag = True
+            temp_data = np.copy(no_sound)
+            for i, f in enumerate(active_freqs):
+                phase = f*BUFFER_LENGTH*count%(2*np.pi)
+                if just_pressed[i]:
+                    temp_data += np.sin(f*t + phase)*ramp_up
+                    just_pressed[i] = 0
+                elif just_released[i]:
+                    temp_data += np.sin(f*t + phase)*ramp_down
+                    just_released[i] = 0
+                    active_freqs[i] = 0
+                else:
+                    temp_data += np.sin(f*t + phase)
+            scaling_factor = max(1, np.sum(active_freqs > 10))
+            temp_data = 0.8*temp_data/scaling_factor
+            if temp_data[100] > 0.5:
+                save_data_0 = np.copy(save_data_1)
+                save_data_1 = np.copy(temp_data)
+            data = temp_data.astype(np.float32).tobytes()
+            #end = time.perf_counter()
+            #print(f"mixed at {end:.5f} \n")
+
+
+    def callback(in_data, frame_count, time_info, status):
+        global data
+        global mixed_flag
+        global count
+
+        return_data = np.copy(data)
+        mixed_flag = False
         count += 1
         return (return_data, pyaudio.paContinue)
 
@@ -204,7 +220,7 @@ try:
                     output=True,
                     stream_callback=callback,
                     frames_per_buffer=BUFFER_FRAMES_NR)
-
+    mixing()
     root.mainloop()
     stream.stop_stream()
     stream.close()
