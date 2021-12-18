@@ -8,8 +8,10 @@ import matplotlib.pyplot as plt
 from scipy import signal
 
 # TODO: Try a class-based system
-# TODO: Shift and capslock currently only work if chord buttons are pressed down. Due to using keysym as identifier. Use keycodes
 # TODO: Fix crackling when user presses a second key
+# TODO: Fix popping when user changes scale
+# TODO: Add more chord tones?
+# TODO: Add more interesting waveforms
 
 os.system('xset r off')
 
@@ -18,7 +20,7 @@ BUFFER_LENGTH = 0.02  # Length of buffer in seconds
 BUFFER_FRAMES_NR = int(BITRATE*BUFFER_LENGTH)
 ET_RATIO = 2**(1/12)  # Semitone ratio for equal temperament
 
-# Dictionaries for key presses. Should use key codes instead of key symbols since capslock changes symbol. Should be set programatically
+# Dictionaries for key presses.
 key_dict_scale = {"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7}
 key_dict_chord = {"j":0,"i":1,"k":2,"o":3,"l":4,"p":5,"oslash":6,"aring":7,"ae":8}
 key_dict_misc = {"f":0,"g":1,"Shift_L":2,"Caps_Lock":3}
@@ -64,7 +66,7 @@ temp.title("Settings")
 temp.configure(bg="black", width=500, height=500)
 temp.bind("<Key>", get_keycode)
 button_1 = tk.Button(temp, height=1, width=10, text="Standard keys", bg="blue", fg="white", command=standard_settings)
-button_2 = tk.Button(temp, height=1, width=10, text="Custom keys", bg="blue", fg="white",  command=temp.destroy)
+button_2 = tk.Button(temp, height=1, width=10, text="Custom keys", bg="blue", fg="white",  command=standard_settings)
 button_1.pack(pady=30)
 button_2.pack()
 temp.mainloop()
@@ -125,6 +127,13 @@ try:
     mixed_flag = False
     count = 0
 
+    def harmonics(f,t):
+        return (0.1*np.sin(0.5*f*t)
+                + np.sin(f*t)
+                + 0.1*np.sin(3/2*f*t)
+                + 0.05*np.sin(2*f*t)
+                + 0.02*np.sin(8/3*f*t))/2
+
     def array_mixing():
         # TODO: Use numpy for mixing to speed up
         # Causes clipping for some reason
@@ -159,7 +168,8 @@ try:
             for i, f in enumerate(active_freqs):
                 if f < 10:
                     continue
-                phase = f*BUFFER_LENGTH*count%(2*np.pi)
+                time_passed = BUFFER_LENGTH*count
+                phase = f*time_passed%(2*np.pi)
                 rel_intensity = f/base_freq  # In order for all notes to play at same decibel
                 if just_pressed[i]:
                     temp_data += np.sin(f*t + phase)*ramp_up/rel_intensity
@@ -170,6 +180,7 @@ try:
                     active_freqs[i] = 0
                 else:
                     temp_data += np.sin(f*t + phase)/rel_intensity
+            
             scaling_factor = max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
             temp_data = 0.8*temp_data/scaling_factor
             if temp_data[100] > 0.5:
@@ -223,8 +234,10 @@ try:
                 action = key_dict_misc[key]
                 if action == 0:
                     scale = scale/ET_RATIO
+                    alt_scale = alt_scale/ET_RATIO
                 elif action == 1:
                     scale = scale*ET_RATIO
+                    alt_scale = alt_scale*ET_RATIO
                 elif action == 2 or action == 3:
                     scale, alt_scale = alt_scale, scale
             chord_freqs = set_chord_freqs(scale_degree)
@@ -249,8 +262,10 @@ try:
             action = key_dict_misc[key]
             if action == 0:
                 scale = scale*ET_RATIO
+                alt_scale = alt_scale*ET_RATIO
             elif action == 1:
                 scale = scale/ET_RATIO
+                alt_scale = alt_scale/ET_RATIO
             elif action == 2:
                 scale, alt_scale = alt_scale, scale
             chord_freqs = set_chord_freqs(scale_degree)
