@@ -14,6 +14,11 @@ BUFFER_LENGTH = 0.02  # Length of buffer in seconds
 BUFFER_FRAMES_NR = int(BITRATE*BUFFER_LENGTH)
 ET_RATIO = 2**(1/12)  # Semitone ratio for equal temperament
 
+# Dictionaries for key presses. Should use key codes instead of key symbols since capslock changes symbol. Should be set programatically
+key_dict_scale = {"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7}
+key_dict_chord = {"j":0,"k":1,"l":2,"oslash":3,"ae":4}
+key_dict_misc = {"f":0,"g":1,"Shift_L":2,"Caps_Lock":3}
+
 try:
     # Setting up tkinter
     root = tk.Tk()
@@ -141,24 +146,25 @@ try:
         # Script does not enter this function when pressing 4 or 8 with 3+ chord tones playing
         #    keycodes not working: 13, 17, 18, 31, 32
 
-        if 43 < event.keycode < 49:
-            index = event.keycode - 44
+        key = event.keysym
+        if key in key_dict_chord:
+            index = key_dict_chord[key]
             active_freqs[index] = chord_freqs[index]
             just_pressed[index] = 1
         else:
-            if 9 < event.keycode < 18:
-                # TODO: Make sure currently playing note changes. Half done. Clicks a little. 4 and 8 not always working
-                scale_degree = event.keycode - 10
-            elif event.keycode == 41:
-                # Key: f - flat tone needs to be done in a better way. Not compatible with major/minor changing
-                scale = scale/ET_RATIO
-            elif event.keycode == 42:
-                # Key: g - sharp tone
-                scale = scale*ET_RATIO
-            elif event.keycode == 50 or event.keycode == 66:
-                scale, alt_scale = alt_scale, scale
+            if key in key_dict_scale:
+                scale_degree = key_dict_scale[key]
+            elif key in key_dict_misc:
+                action = key_dict_misc[key]
+                if action == 0:
+                    scale = scale/ET_RATIO
+                elif action == 1:
+                    scale = scale*ET_RATIO
+                elif action == 2 or action == 3:
+                    scale, alt_scale = alt_scale, scale
             chord_freqs = set_chord_freqs(scale_degree)
-            active_freqs = chord_freqs*(active_freqs > 1)
+            active_freqs = chord_freqs*(active_freqs > 10)
+
 
     def key_up(event):
         global active_freqs
@@ -170,22 +176,20 @@ try:
         global active_freqs
         global chord_freqs
 
-        if event.keycode == 41:
-            # Key: f - release flat
-            scale = scale*ET_RATIO
-        elif event.keycode == 42:
-            # Key: g - release sharp
-            scale = scale/ET_RATIO
-        elif event.keycode == 50:
-            scale, alt_scale = alt_scale, scale
-        chord_freqs = set_chord_freqs(scale_degree)
-        active_freqs = chord_freqs*(active_freqs > 1)
-
-        index = event.keycode - 44
-        try:
+        key = event.keysym
+        if key in key_dict_chord:
+            index = key_dict_chord[key]
             just_released[index] = 1
-        except:
-            pass
+        elif key in key_dict_misc:
+            action = key_dict_misc[key]
+            if action == 0:
+                scale = scale/ET_RATIO
+            elif action == 1:
+                scale = scale*ET_RATIO
+            elif action == 2:
+                scale, alt_scale = alt_scale, scale
+            chord_freqs = set_chord_freqs(scale_degree)
+            active_freqs = chord_freqs*(active_freqs > 10)
 
 
     chord_freqs = set_chord_freqs(0)
