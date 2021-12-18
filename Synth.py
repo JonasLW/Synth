@@ -11,7 +11,7 @@ from scipy import signal
 # TODO: Fix crackling when user presses a second key
 # TODO: Fix popping when user changes scale
 # TODO: Add more chord tones?
-# TODO: Add more interesting waveforms
+# TODO: Add more interesting waveforms. Note: When using callback, the quality degrades over time. Might be helped by resetting timer for each button press
 
 os.system('xset r off')
 
@@ -132,7 +132,10 @@ try:
                 + np.sin(f*t)
                 + 0.1*np.sin(3/2*f*t)
                 + 0.05*np.sin(2*f*t)
-                + 0.02*np.sin(8/3*f*t))/2
+                + 0.02*np.sin(8/3*f*t))/(0.1+1+0.1+0.05+0.02)
+
+    def sinewave(f,t):
+        return np.sin(f*t)
 
     def array_mixing():
         # TODO: Use numpy for mixing to speed up
@@ -145,7 +148,7 @@ try:
         active_freqs = active_freqs*(just_released != 1)
         just_released = np.zeros((5,1))
 
-    def mixing():
+    def mixing(wave_cb):
         global data
         global just_pressed
         global just_released
@@ -157,7 +160,7 @@ try:
         global save_data_0
         global save_data_1
 
-        root.after(5, mixing)
+        root.after(5, mixing, wave_cb)
         if mixed_flag:
             pass
         else:
@@ -172,14 +175,14 @@ try:
                 phase = f*time_passed%(2*np.pi)
                 rel_intensity = f/base_freq  # In order for all notes to play at same decibel
                 if just_pressed[i]:
-                    temp_data += np.sin(f*t + phase)*ramp_up/rel_intensity
+                    temp_data += wave_cb(f, t+time_passed)*ramp_up/rel_intensity
                     just_pressed[i] = 0
                 elif just_released[i]:
-                    temp_data += np.sin(f*t + phase)*ramp_down/rel_intensity
+                    temp_data += wave_cb(f, t+time_passed)*ramp_down/rel_intensity
                     just_released[i] = 0
                     active_freqs[i] = 0
                 else:
-                    temp_data += np.sin(f*t + phase)/rel_intensity
+                    temp_data += wave_cb(f, t+time_passed)/rel_intensity
             
             scaling_factor = max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
             temp_data = 0.8*temp_data/scaling_factor
@@ -284,7 +287,7 @@ try:
                     output=True,
                     stream_callback=callback,
                     frames_per_buffer=BUFFER_FRAMES_NR)
-    mixing()
+    mixing(sinewave)
     root.mainloop()
     stream.stop_stream()
     stream.close()
