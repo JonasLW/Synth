@@ -113,7 +113,7 @@ try:
     active_freqs = np.zeros(9)  #np.zeros((5,1))
     just_pressed = np.zeros(9)  #np.zeros((5,1))
     just_released = np.zeros(9)  #np.zeros((5,1))
-    counters = np.zeros(9)
+    counters = np.zeros(9, dtype=np.int)
     ramp_up = np.linspace(0, 1, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile((5,1))
     ramp_down = np.linspace(1, 0, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile(5,1)
 
@@ -123,20 +123,44 @@ try:
     #no_sound_a = np.tile(no_sound, (5,1))
     data = no_sound
 
-    save_data_0 = np.empty(BUFFER_FRAMES_NR)
-    save_data_1 = np.empty(BUFFER_FRAMES_NR)
+    save_data_0 = np.zeros(BUFFER_FRAMES_NR)
+    save_data_1 = np.zeros(BUFFER_FRAMES_NR)
     mixed_flag = False
     count = 0
+    scaling_factor = 1
 
-    def harmonics(f,t):
+    def sinewave(f,t):
+        fade_in = 1 - 1/(2*t/BUFFER_LENGTH + 1)
+        return np.sin(f*t)
+
+    def sine_fade(f, t):
+        fade_in = 1 - 1/(2*t/BUFFER_LENGTH + 1)  # Does not work as intended
+        return np.sin(f*t)*0.5**(t/0.5)
+
+    def square(f, t):
+        return signal.square(f*t)
+
+    def square_fade(f, t):
+        return signal.square(f*t)*0.5**(t/0.5)
+
+    def saw(f, t):
+        return signal.sawtooth(f*t)
+
+    def saw_fade(f, t):
+        return signal.sawtooth(f*t)*0.5**(t/0.5)
+
+    def organ(f,t):
         return (0.1*np.sin(0.5*f*t)
                 + np.sin(f*t)
                 + 0.1*np.sin(3/2*f*t)
                 + 0.05*np.sin(2*f*t)
                 + 0.02*np.sin(8/3*f*t))/(0.1+1+0.1+0.05+0.02)
 
-    def sinewave(f,t):
-        return np.sin(f*t)
+    def organ_fade(f,t):
+        return organ(f,t)*0.5**(t/0.5)
+
+    def square_sine(f, t):
+        return (signal.square(f*t) + 0.3*np.sin(f*t))/1.3
 
     def array_mixing():
         # TODO: Use numpy for mixing to speed up
@@ -161,6 +185,7 @@ try:
         global mixed_flag
         global save_data_0
         global save_data_1
+        global scaling_factor
 
         root.after(5, mixing, wave_cb)
         if mixed_flag:
@@ -172,6 +197,7 @@ try:
             temp_data = np.copy(no_sound)
             for i, f in enumerate(active_freqs):
                 if f < 10:
+                    counters[i] = 0
                     continue
                 time_passed = BUFFER_LENGTH*counters[i]
                 phase = f*time_passed%(2*np.pi)
@@ -185,12 +211,16 @@ try:
                     active_freqs[i] = 0
                 else:
                     temp_data += wave_cb(f, t+time_passed)/rel_intensity
-            
-            scaling_factor = max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
-            temp_data = 0.8*temp_data/scaling_factor
-            if temp_data[100] > 0.5:
-                save_data_0 = np.copy(save_data_1)
+            old_scaling_factor = scaling_factor
+            scaling_factor =  max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
+            scaling_ramp = np.linspace(old_scaling_factor, scaling_factor, BUFFER_FRAMES_NR)
+            temp_data = 0.8*temp_data/scaling_ramp
+            """
+            if np.amax(temp_data) > 1:
+                print("Problem")
+                save_data_0 = np.copy(np.frombuffer(data,dtype=np.float32))
                 save_data_1 = np.copy(temp_data)
+            """
             data = temp_data.astype(np.float32).tobytes()
             #end = time.perf_counter()
             #print(f"mixed at {end:.5f} \n")
@@ -249,7 +279,7 @@ try:
                     scale, alt_scale = alt_scale, scale
             chord_freqs = set_chord_freqs(scale_degree)
             active_freqs = chord_freqs*(active_freqs > 10)
-            counters = np.zeros(9)
+            counters = np.zeros(9, dtype=np.int)
 
 
     def key_up(event):
@@ -261,6 +291,7 @@ try:
         global scale_degree
         global active_freqs
         global chord_freqs
+        global counters
 
         key = event.keycode
         if key in key_dict_chord:
@@ -292,7 +323,7 @@ try:
                     output=True,
                     stream_callback=callback,
                     frames_per_buffer=BUFFER_FRAMES_NR)
-    mixing(harmonics)
+    mixing(sinewave)
     root.mainloop()
     stream.stop_stream()
     stream.close()
