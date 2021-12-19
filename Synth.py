@@ -113,6 +113,7 @@ try:
     active_freqs = np.zeros(9)  #np.zeros((5,1))
     just_pressed = np.zeros(9)  #np.zeros((5,1))
     just_released = np.zeros(9)  #np.zeros((5,1))
+    counters = np.zeros(9)
     ramp_up = np.linspace(0, 1, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile((5,1))
     ramp_down = np.linspace(1, 0, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile(5,1)
 
@@ -153,6 +154,7 @@ try:
         global just_pressed
         global just_released
         global count
+        global counters
         global no_sound
         global active_freqs
         global root
@@ -171,7 +173,7 @@ try:
             for i, f in enumerate(active_freqs):
                 if f < 10:
                     continue
-                time_passed = BUFFER_LENGTH*count
+                time_passed = BUFFER_LENGTH*counters[i]
                 phase = f*time_passed%(2*np.pi)
                 rel_intensity = f/base_freq  # In order for all notes to play at same decibel
                 if just_pressed[i]:
@@ -198,10 +200,11 @@ try:
         global data
         global mixed_flag
         global count
+        global counters
 
         return_data = np.copy(data)
         mixed_flag = False
-        count += 1
+        counters += 1
         return (return_data, pyaudio.paContinue)
 
     def set_chord_freqs(degree):
@@ -220,16 +223,17 @@ try:
         global sharp_scale
         global scale_degree
         global chord_freqs
+        global counters
         # TODO: Add button for sharp and flat notes. Half done. not quite working smoothly
         # TODO: Change to switch-case?
         # Script does not enter this function when pressing 4 or 8 with 3+ chord tones playing
-        # Holding shift changes key symbol, thus minor is not working
 
         key = event.keycode
         if key in key_dict_chord:
             index = key_dict_chord[key]
             active_freqs[index] = chord_freqs[index]
             just_pressed[index] = 1
+            counters[index] = 0
         else:
             if key in key_dict_scale:
                 scale_degree = key_dict_scale[key]
@@ -245,6 +249,7 @@ try:
                     scale, alt_scale = alt_scale, scale
             chord_freqs = set_chord_freqs(scale_degree)
             active_freqs = chord_freqs*(active_freqs > 10)
+            counters = np.zeros(9)
 
 
     def key_up(event):
