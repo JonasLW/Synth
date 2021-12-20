@@ -288,26 +288,28 @@ try:
             active_freqs[index] = chord_freqs[index]
             just_pressed[index] = 1
             counters[index] = 0
-        else:
-            if key in key_dict_scale:
-                transition_flag = True
-                scale_degree = key_dict_scale[key]
-            elif key in key_dict_misc:
-                transition_flag = True
-                action = key_dict_misc[key]
-                if action == 0:
-                    scale = scale/ET_RATIO
-                    alt_scale = alt_scale/ET_RATIO
-                elif action == 1:
-                    scale = scale*ET_RATIO
-                    alt_scale = alt_scale*ET_RATIO
-                elif action == 2 or action == 3:
-                    scale, alt_scale = alt_scale, scale
+        elif key in key_dict_scale:
+            transition_flag = True
+            scale_degree = key_dict_scale[key]
             residual_freqs = np.copy(active_freqs)
             chord_freqs = set_chord_freqs(scale_degree)
             active_freqs = chord_freqs*(active_freqs > 10)
             just_pressed = np.ones(16)
-            #counters = np.zeros(16, dtype=np.int)
+        elif key in key_dict_misc:
+            transition_flag = True
+            action = key_dict_misc[key]
+            if action == 0:
+                scale = scale/ET_RATIO
+                alt_scale = alt_scale/ET_RATIO
+            elif action == 1:
+                scale = scale*ET_RATIO
+                alt_scale = alt_scale*ET_RATIO
+            elif action == 2 or action == 3:
+                scale, alt_scale = alt_scale, scale
+            residual_freqs = np.copy(active_freqs)
+            chord_freqs = set_chord_freqs(scale_degree)
+            active_freqs = chord_freqs*(active_freqs > 10)
+            just_pressed = np.ones(16)
 
 
     def key_up(event):
