@@ -8,10 +8,12 @@ import matplotlib.pyplot as plt
 from scipy import signal
 
 # TODO: Try a class-based system
-# TODO: Fix crackling when user presses a second key
 # TODO: Fix popping when user changes scale
 # TODO: Add more chord tones?
 # TODO: Add more interesting waveforms. Note: When using callback, the quality degrades over time. Might be helped by resetting timer for each button press
+# TODO: Add sustain function
+# TODO: Add transpose function
+# TODO: Add GUI
 
 os.system('xset r off')
 
@@ -114,6 +116,8 @@ try:
     just_pressed = np.zeros(9)  #np.zeros((5,1))
     just_released = np.zeros(9)  #np.zeros((5,1))
     counters = np.zeros(9, dtype=np.int)
+    residual_freqs = np.zeros(9)
+    transition_flag = False
     ramp_up = np.linspace(0, 1, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile((5,1))
     ramp_down = np.linspace(1, 0, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile(5,1)
 
@@ -186,15 +190,28 @@ try:
         global save_data_0
         global save_data_1
         global scaling_factor
+        global transition_flag
+        global residual_freqs
 
         root.after(5, mixing, wave_cb)
         if mixed_flag:
             pass
         else:
-            #start = time.perf_counter()
-            #print(f"mixing at {start:.5f}")
             mixed_flag = True
             temp_data = np.copy(no_sound)
+            if transition_flag:
+                for i, f in enumerate(residual_freqs):
+                    if f < 10:
+                        continue
+                    time_passed = BUFFER_LENGTH*counters[i]
+                    phase = f*time_passed%(2*np.pi)
+                    rel_intensity = f/base_freq  # In order for all notes to play at same decibel
+                    temp_data += wave_cb(f, t+time_passed)*ramp_down/rel_intensity
+                    residual_freqs[i] = 0
+                transition_flag = False
+                residual_freqs = np.zeros(9)
+                counters = np.zeros(9, dtype=np.int)
+
             for i, f in enumerate(active_freqs):
                 if f < 10:
                     counters[i] = 0
@@ -203,7 +220,7 @@ try:
                 phase = f*time_passed%(2*np.pi)
                 rel_intensity = f/base_freq  # In order for all notes to play at same decibel
                 if just_pressed[i]:
-                    temp_data += wave_cb(f, t+time_passed)*ramp_up/rel_intensity
+                    temp_data += wave_cb(f, t+time_passed)*ramp_up/rel_intensity  # time_passed not necessary?
                     just_pressed[i] = 0
                 elif just_released[i]:
                     temp_data += wave_cb(f, t+time_passed)*ramp_down/rel_intensity
@@ -211,10 +228,14 @@ try:
                     active_freqs[i] = 0
                 else:
                     temp_data += wave_cb(f, t+time_passed)/rel_intensity
+
             old_scaling_factor = scaling_factor
-            scaling_factor =  max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
-            scaling_ramp = np.linspace(old_scaling_factor, scaling_factor, BUFFER_FRAMES_NR)
-            temp_data = 0.8*temp_data/scaling_ramp
+            scaling_factor =  1/max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
+            if old_scaling_factor == scaling_factor:
+                temp_data = 0.8*temp_data*scaling_factor
+            else:
+                scaling_ramp = np.linspace(old_scaling_factor, scaling_factor, BUFFER_FRAMES_NR)
+                temp_data = 0.8*temp_data*scaling_ramp
             """
             if np.amax(temp_data) > 1:
                 print("Problem")
@@ -222,8 +243,6 @@ try:
                 save_data_1 = np.copy(temp_data)
             """
             data = temp_data.astype(np.float32).tobytes()
-            #end = time.perf_counter()
-            #print(f"mixed at {end:.5f} \n")
 
 
     def callback(in_data, frame_count, time_info, status):
@@ -254,6 +273,8 @@ try:
         global scale_degree
         global chord_freqs
         global counters
+        global transition_flag
+        global residual_freqs
         # TODO: Add button for sharp and flat notes. Half done. not quite working smoothly
         # TODO: Change to switch-case?
         # Script does not enter this function when pressing 4 or 8 with 3+ chord tones playing
@@ -266,8 +287,10 @@ try:
             counters[index] = 0
         else:
             if key in key_dict_scale:
+                transition_flag = True
                 scale_degree = key_dict_scale[key]
             elif key in key_dict_misc:
+                transition_flag = True
                 action = key_dict_misc[key]
                 if action == 0:
                     scale = scale/ET_RATIO
@@ -277,9 +300,11 @@ try:
                     alt_scale = alt_scale*ET_RATIO
                 elif action == 2 or action == 3:
                     scale, alt_scale = alt_scale, scale
+            residual_freqs = np.copy(active_freqs)
             chord_freqs = set_chord_freqs(scale_degree)
             active_freqs = chord_freqs*(active_freqs > 10)
-            counters = np.zeros(9, dtype=np.int)
+            just_pressed = np.ones(9)
+            #counters = np.zeros(9, dtype=np.int)
 
 
     def key_up(event):
@@ -292,12 +317,15 @@ try:
         global active_freqs
         global chord_freqs
         global counters
+        global transition_flag
+        global residual_freqs
 
         key = event.keycode
         if key in key_dict_chord:
             index = key_dict_chord[key]
             just_released[index] = 1
         elif key in key_dict_misc:
+            transition_flag = True
             action = key_dict_misc[key]
             if action == 0:
                 scale = scale*ET_RATIO
@@ -307,8 +335,10 @@ try:
                 alt_scale = alt_scale/ET_RATIO
             elif action == 2:
                 scale, alt_scale = alt_scale, scale
+            residual_freqs = np.copy(active_freqs)
             chord_freqs = set_chord_freqs(scale_degree)
             active_freqs = chord_freqs*(active_freqs > 10)
+            just_pressed = np.ones(9)
 
 
     chord_freqs = set_chord_freqs(0)
