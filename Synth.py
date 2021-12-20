@@ -220,7 +220,7 @@ try:
                     continue
                 time_passed = BUFFER_LENGTH*counters[i]
                 #phase = f*time_passed%(2*np.pi)
-                rel_intensity = f/base_freq  # In order for all notes to play at same decibel
+                rel_intensity = np.sqrt(f/base_freq)  # In order for all notes to play at same decibel
                 if just_pressed[i]:
                     temp_data += wave_cb(f, t+time_passed)*ramp_up/rel_intensity  # time_passed not necessary?
                     just_pressed[i] = 0
@@ -233,12 +233,13 @@ try:
 
             just_released = np.zeros(16)
             old_scaling_factor = scaling_factor
-            scaling_factor =  1/max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
+            #scaling_factor =  1/max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
+            scaling_factor = 1/(1+np.sqrt(np.sum(active_freqs > 10)))
             if old_scaling_factor == scaling_factor:
-                temp_data = 0.8*temp_data*scaling_factor
+                temp_data = temp_data*scaling_factor
             else:
                 scaling_ramp = np.linspace(old_scaling_factor, scaling_factor, BUFFER_FRAMES_NR)
-                temp_data = 0.8*temp_data*scaling_ramp
+                temp_data = temp_data*scaling_ramp
             """
             if np.amax(temp_data) > 1:
                 print("Problem")
