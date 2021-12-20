@@ -310,6 +310,7 @@ try:
     def key_up(event):
         global active_freqs
         global just_released
+        global just_pressed
         global scale
         global alt_scale
         global major_scale
@@ -353,7 +354,7 @@ try:
                     output=True,
                     stream_callback=callback,
                     frames_per_buffer=BUFFER_FRAMES_NR)
-    mixing(sinewave)
+    mixing(sine_fade)
     root.mainloop()
     stream.stop_stream()
     stream.close()
