@@ -210,7 +210,6 @@ try:
                     residual_freqs[i] = 0
                 transition_flag = False
                 residual_freqs = np.zeros(9)
-                counters = np.zeros(9, dtype=np.int)
 
             for i, f in enumerate(active_freqs):
                 if f < 10:
