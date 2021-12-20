@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 from scipy import signal
 
 # TODO: Try a class-based system
-# TODO: Fix popping when user changes scale
 # TODO: Add more chord tones?
-# TODO: Add more interesting waveforms. Note: When using callback, the quality degrades over time. Might be helped by resetting timer for each button press
+# TODO: Add more interesting waveforms.
+# TODO: Build ramp-up in to waveforms
 # TODO: Add sustain function
 # TODO: Add transpose function
 # TODO: Add GUI
@@ -24,8 +24,13 @@ ET_RATIO = 2**(1/12)  # Semitone ratio for equal temperament
 
 # Dictionaries for key presses.
 key_dict_scale = {"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7}
-key_dict_chord = {"j":0,"i":1,"k":2,"o":3,"l":4,"p":5,"oslash":6,"aring":7,"ae":8}
-key_dict_misc = {"f":0,"g":1,"Shift_L":2,"Caps_Lock":3}
+# Extra chord tones for the sake of playing chord inversions.
+# Note: System from d-h is opposite of system from j-ø to make inversions simpler. Consider making these fit the pattern of the ordinary chord tones instead
+# Note that u and j presently give the same note (update: u has been disabled due to conflict with j)
+key_dict_chord = {"d":0,"r":1,"f":2,"t":3,"g":4,"y":5,"h":6,
+                  "j":7,"i":8,"k":9,"o":10,"l":11,"p":12,"oslash":13,
+                  "aring":14,"ae":15} 
+key_dict_misc = {"a":0,"s":1,"Shift_L":2,"Caps_Lock":3}
 
 
 # Setting up dictionaries with correct keycodes -------------------------
@@ -90,13 +95,13 @@ try:
     PyAudio = pyaudio.PyAudio     #initialize pyaudio
 
 
-    base_freq = 2*np.pi*261.63  # Angular frequencies for performance, this this by option
+    base_freq = 2*np.pi*130.81  # Angular frequencies for performance, this this by option
     semitones = np.empty(12)
     for i in range(12):
         semitones[i] = base_freq*ET_RATIO**i
 
     major_scale = np.copy(semitones[np.array([0,2,4,5,7,9,11])])
-    major_scale = np.concatenate((major_scale, 2*major_scale, 4*major_scale))
+    major_scale = np.concatenate((major_scale, 2*major_scale, 4*major_scale, 8*major_scale))
     minor_scale = np.copy(semitones[np.array([0,2,3,5,7,8,10])])
     minor_scale = np.concatenate((minor_scale, 2*minor_scale, 4*minor_scale))
     """ 
@@ -112,11 +117,11 @@ try:
     scale = np.copy(default_scale)
     scale_degree = 0
 
-    active_freqs = np.zeros(9)  #np.zeros((5,1))
-    just_pressed = np.zeros(9)  #np.zeros((5,1))
-    just_released = np.zeros(9)  #np.zeros((5,1))
-    counters = np.zeros(9, dtype=np.int)
-    residual_freqs = np.zeros(9)
+    active_freqs = np.zeros(16)  #np.zeros((5,1))
+    just_pressed = np.zeros(16)  #np.zeros((5,1))
+    just_released = np.zeros(16)  #np.zeros((5,1))
+    counters = np.zeros(16, dtype=np.int)
+    residual_freqs = np.zeros(16)
     transition_flag = False
     ramp_up = np.linspace(0, 1, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile((5,1))
     ramp_down = np.linspace(1, 0, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile(5,1)
@@ -130,7 +135,6 @@ try:
     save_data_0 = np.zeros(BUFFER_FRAMES_NR)
     save_data_1 = np.zeros(BUFFER_FRAMES_NR)
     mixed_flag = False
-    count = 0
     scaling_factor = 1
 
     def sinewave(f,t):
@@ -181,7 +185,6 @@ try:
         global data
         global just_pressed
         global just_released
-        global count
         global counters
         global no_sound
         global active_freqs
@@ -204,19 +207,19 @@ try:
                     if f < 10:
                         continue
                     time_passed = BUFFER_LENGTH*counters[i]
-                    phase = f*time_passed%(2*np.pi)
+                    #phase = f*time_passed%(2*np.pi)
                     rel_intensity = f/base_freq  # In order for all notes to play at same decibel
                     temp_data += wave_cb(f, t+time_passed)*ramp_down/rel_intensity
                     residual_freqs[i] = 0
                 transition_flag = False
-                residual_freqs = np.zeros(9)
+                residual_freqs = np.zeros(16)
 
             for i, f in enumerate(active_freqs):
                 if f < 10:
                     counters[i] = 0
                     continue
                 time_passed = BUFFER_LENGTH*counters[i]
-                phase = f*time_passed%(2*np.pi)
+                #phase = f*time_passed%(2*np.pi)
                 rel_intensity = f/base_freq  # In order for all notes to play at same decibel
                 if just_pressed[i]:
                     temp_data += wave_cb(f, t+time_passed)*ramp_up/rel_intensity  # time_passed not necessary?
@@ -228,6 +231,7 @@ try:
                 else:
                     temp_data += wave_cb(f, t+time_passed)/rel_intensity
 
+            just_released = np.zeros(16)
             old_scaling_factor = scaling_factor
             scaling_factor =  1/max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
             if old_scaling_factor == scaling_factor:
@@ -247,8 +251,8 @@ try:
     def callback(in_data, frame_count, time_info, status):
         global data
         global mixed_flag
-        global count
         global counters
+        global just_released
 
         return_data = np.copy(data)
         mixed_flag = False
@@ -257,7 +261,7 @@ try:
 
     def set_chord_freqs(degree):
         global scale
-        freqs = scale[degree : degree+9]
+        freqs = scale[degree : degree+16]
         return freqs
 
     def key_down(event):
@@ -302,8 +306,8 @@ try:
             residual_freqs = np.copy(active_freqs)
             chord_freqs = set_chord_freqs(scale_degree)
             active_freqs = chord_freqs*(active_freqs > 10)
-            just_pressed = np.ones(9)
-            #counters = np.zeros(9, dtype=np.int)
+            just_pressed = np.ones(16)
+            #counters = np.zeros(16, dtype=np.int)
 
 
     def key_up(event):
@@ -338,7 +342,7 @@ try:
             residual_freqs = np.copy(active_freqs)
             chord_freqs = set_chord_freqs(scale_degree)
             active_freqs = chord_freqs*(active_freqs > 10)
-            just_pressed = np.ones(9)
+            just_pressed = np.ones(16)
 
 
     chord_freqs = set_chord_freqs(0)
