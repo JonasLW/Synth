@@ -13,8 +13,8 @@ import tkinter.font as font
 # TODO: Build ramp-up in to waveforms
 # TODO: Add sustain function
 # TODO: Add transpose function
-# TODO: Add GUI
 # TODO: Add custom keys functionality
+# TODO: Tone indicator light stick if chord (scale_degree) changes before they're let up. Fix this
 
 os.system('xset r off')
 
@@ -95,9 +95,9 @@ for i in range(12):
     semitones[i] = base_freq*ET_RATIO**i
 
 major_scale = np.copy(semitones[np.array([0,2,4,5,7,9,11])])
-major_scale = np.concatenate((major_scale, 2*major_scale, 4*major_scale, 8*major_scale))
+major_scale = np.concatenate((major_scale, 2*major_scale, 4*major_scale, 8*major_scale, 16*major_scale))
 minor_scale = np.copy(semitones[np.array([0,2,3,5,7,8,10])])
-minor_scale = np.concatenate((minor_scale, 2*minor_scale, 4*minor_scale))
+minor_scale = np.concatenate((minor_scale, 2*minor_scale, 4*minor_scale, 8*minor_scale, 16*minor_scale))
 """ 
 flat_maj_scale = major_scale/ET_RATIO
 sharp_maj_scale = major_scale*ET_RATIO
@@ -273,7 +273,8 @@ def key_down(event):
     global counters
     global transition_flag
     global residual_freqs
-    global buttons
+    global chord_buttons
+    global tone_buttons
     # TODO: Add button for sharp and flat notes. Half done. not quite working smoothly
     # TODO: Change to switch-case?
     # Script does not enter this function when pressing 4 or 8 with 3+ chord tones playing
@@ -284,11 +285,12 @@ def key_down(event):
         active_freqs[index] = chord_freqs[index]
         just_pressed[index] = 1
         counters[index] = 0
+        tone_buttons[scale_degree+index].configure(bg="yellow")
     elif key in key_dict_scale:
-        buttons[scale_degree].configure(bg="blue",fg="white")  # For GUI
+        chord_buttons[scale_degree].configure(bg="blue",fg="white")  # For GUI
         transition_flag = True
         scale_degree = key_dict_scale[key]
-        buttons[scale_degree].configure(bg="yellow", fg="black")  # For GUI
+        chord_buttons[scale_degree].configure(bg="yellow", fg="black")  # For GUI
         residual_freqs = np.copy(active_freqs)
         chord_freqs = set_chord_freqs(scale_degree)
         active_freqs = chord_freqs*(active_freqs > 10)
@@ -323,11 +325,13 @@ def key_up(event):
     global counters
     global transition_flag
     global residual_freqs
+    global tone_buttons
 
     key = event.keycode
     if key in key_dict_chord:
         index = key_dict_chord[key]
         just_released[index] = 1
+        tone_buttons[scale_degree+index].configure(bg="black")
     elif key in key_dict_misc:
         transition_flag = True
         action = key_dict_misc[key]
@@ -344,6 +348,28 @@ def key_up(event):
         active_freqs = chord_freqs*(active_freqs > 10)
         just_pressed = np.ones(16)
 
+def update_base_freq():
+    global base_freq
+    global scale
+    global alt_scale
+    global chord_freqs
+
+    base_freq = 2*np.pi*float(v.get())
+    semitones = np.empty(12)
+    for i in range(12):
+        semitones[i] = base_freq*ET_RATIO**i
+
+    major_scale = np.copy(semitones[np.array([0,2,4,5,7,9,11])])
+    major_scale = np.concatenate((major_scale, 2*major_scale, 4*major_scale, 8*major_scale, 16*major_scale))
+    minor_scale = np.copy(semitones[np.array([0,2,3,5,7,8,10])])
+    minor_scale = np.concatenate((minor_scale, 2*minor_scale, 4*minor_scale, 8*minor_scale, 16*minor_scale))
+    scale = np.copy(major_scale)
+    alt_scale = np.copy(minor_scale)
+    chord_freqs = set_chord_freqs(scale_degree)
+    frame_1.focus_set()
+
+
+
 
 chord_freqs = set_chord_freqs(0)
 
@@ -352,20 +378,35 @@ root = tk.Tk()
 root.title("Kinda Synth")
 root.configure(bg="black")
 
+frame_0 = tk.Frame(root, height=400, width = 200, bg="black")
+frame_0.pack(side=tk.LEFT)
 frame_1 = tk.Frame(root, height=200, width=1600, bg="black")
 frame_1.pack()
-frame_2 = tk.Frame(root, height=200, width=200, bg="blue")
-frame_2.pack()
 
-buttons = []
+v = tk.StringVar()
+f_button = tk.Button(frame_0, text="Base frequency:", bg="blue", fg="white", command=update_base_freq)
+f_button.pack(side=tk.LEFT, padx=10)
+f_entry = tk.Entry(frame_0, width=8, textvariable=v)
+f_entry.pack(side=tk.LEFT, padx=10)
+v.set(str(base_freq/2/np.pi))
+
+chord_buttons = []
 button_font = font.Font(family="Times", size=18, weight="bold")
 for i in range(8):
-    buttons.append(tk.Button(frame_1, text=chord_symb_dict_maj[i],
+    chord_buttons.append(tk.Button(frame_1, text=chord_symb_dict_maj[i],
                              bg="blue", fg="white", width=8, height=4,
                              font=button_font))
-    buttons[i].pack(padx=10, side=tk.LEFT)
+    chord_buttons[i].grid(row=0, column=i, padx=10, pady=20)
 
-buttons[0].configure(bg="yellow", fg="black")
+chord_buttons[0].configure(bg="yellow", fg="black")
+
+tone_buttons = []
+button_font = font.Font(family="Times", size=18, weight="bold")
+for i in range(21):
+    tone_buttons.append(tk.Button(frame_1, bg="black", fg="white",
+                                  width=1, height=1))
+    tone_buttons[i].grid(row=3-i//7, column=i%7, pady=10)
+
 
 root.bind("<KeyPress>", key_down)
 root.bind("<KeyRelease>", key_up)
