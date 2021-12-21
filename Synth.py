@@ -133,7 +133,7 @@ save_data_1 = np.zeros(BUFFER_FRAMES_NR)
 mixed_flag = False
 scaling_factor = 1
 
-def sinewave(f,t):
+def sinewave(f, t):
     fade_in = 1 - 1/(2*t/BUFFER_LENGTH + 1)
     return np.sin(f*t)
 
@@ -153,18 +153,44 @@ def saw(f, t):
 def saw_fade(f, t):
     return signal.sawtooth(f*t)*0.5**(t/0.5)
 
-def organ(f,t):
+def organ(f, t):
     return (0.1*np.sin(0.5*f*t)
             + np.sin(f*t)
             + 0.1*np.sin(3/2*f*t)
             + 0.05*np.sin(2*f*t)
             + 0.02*np.sin(8/3*f*t))/(0.1+1+0.1+0.05+0.02)
 
-def organ_fade(f,t):
+def organ_fade(f, t):
     return organ(f,t)*0.5**(t/0.5)
 
 def square_sine(f, t):
     return (signal.square(f*t) + 0.3*np.sin(f*t))/1.3
+
+def saw_sine(f, t):
+    return signal.sawtooth(f*t)*np.sin(f*t)
+
+def marimbish(f, t):
+    # Weird sound found when trying to make a transient
+    f_1 = np.sin(0.1*f*t)*0.5**(10*t)
+    f_2 = np.sin(0.5*f*t)*0.5**(12*t)
+    f_3 = np.sin(1.2*f*t)*0.5**(20*t)
+    f_4 = np.sin(1.5*f*t)*0.5**(20*t)
+    return (f_1 + f_2 + f_3 + f_4)/4
+
+def transient(f, t):
+    f_0 = np.sin(2*np.pi*130*t)*0.5**(20*t)
+    f_1 = np.sin(2*8*np.sqrt(f*t))*0.5**(20*t)
+    f_2 = np.sin(2*11*np.sqrt(f*t))*0.5**(22*t)
+    f_3 = 0.5*np.sin(2*19*np.sqrt(f*t))*0.5**(40*t)
+    f_4 = 0.2*np.sin(2*23*np.sqrt(f*t))*0.5**(40*t)
+    return (f_1 + f_2 + f_3 + f_4)
+
+def weird_sine(f, t):
+    mod = 1 + np.sin(f/100*t)
+    return np.sin(mod*f*t)*0.5**(t/0.5)
+
+def sine_w_strike(f, t):
+    return sine_fade(f, t) + transient(f, t)/4
 
 def array_mixing():
     # TODO: Use numpy for mixing to speed up
