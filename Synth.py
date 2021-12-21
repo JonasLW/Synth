@@ -33,7 +33,9 @@ key_dict_chord = {"d":0,"r":1,"f":2,"t":3,"g":4,"y":5,"h":6,
                   "aring":14,"ae":15} 
 key_dict_misc = {"a":0,"s":1,"Shift_L":2,"Caps_Lock":3}
 chord_symb_dict_maj = {0:"Imaj7",1:"IIm7",2:"IIIm7",3:"IVmaj7",4:"V7",5:"VIm7",6:"VIIm7b5",7:"Imaj7"}
-chord_symb_dict_min = {0:"i m7",1:"ii m7b5",2:"III maj7",3:"iv m7",4:"v m7",5:"VI maj7",6:"VII m7",7:"i m7"}
+chord_symb_dict_min = {0:"Im7",1:"IIm7b5",2:"IIImaj7",3:"IVm7",4:"Vm7",5:"VImaj7",6:"VII7",7:"Im7"}
+chord_symb_dict = chord_symb_dict_maj
+alt_chord_symb_dict = chord_symb_dict_min
 
 
 # Setting up dictionaries with correct keycodes -------------------------
@@ -275,7 +277,8 @@ def key_down(event):
     global residual_freqs
     global chord_buttons
     global tone_buttons
-    # TODO: Add button for sharp and flat notes. Half done. not quite working smoothly
+    global chord_symb_dict
+    global alt_chord_symb_dict
     # TODO: Change to switch-case?
     # Script does not enter this function when pressing 4 or 8 with 3+ chord tones playing
 
@@ -306,6 +309,8 @@ def key_down(event):
             alt_scale = alt_scale*ET_RATIO
         elif action == 2 or action == 3:
             scale, alt_scale = alt_scale, scale
+            chord_symb_dict, alt_chord_symb_dict = alt_chord_symb_dict, chord_symb_dict
+            [chord_buttons[i].configure(text=chord_symb_dict[i]) for i in range(8)]
         residual_freqs = np.copy(active_freqs)
         chord_freqs = set_chord_freqs(scale_degree)
         active_freqs = chord_freqs*(active_freqs > 10)
@@ -326,6 +331,8 @@ def key_up(event):
     global transition_flag
     global residual_freqs
     global tone_buttons
+    global chord_symb_dict
+    global alt_chord_symb_dict
 
     key = event.keycode
     if key in key_dict_chord:
@@ -343,6 +350,8 @@ def key_up(event):
             alt_scale = alt_scale/ET_RATIO
         elif action == 2:
             scale, alt_scale = alt_scale, scale
+            chord_symb_dict, alt_chord_symb_dict = alt_chord_symb_dict, chord_symb_dict
+            [chord_buttons[i].configure(text=chord_symb_dict[i]) for i in range(8)]
         residual_freqs = np.copy(active_freqs)
         chord_freqs = set_chord_freqs(scale_degree)
         active_freqs = chord_freqs*(active_freqs > 10)
