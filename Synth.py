@@ -32,7 +32,8 @@ key_dict_chord = {"d":0,"r":1,"f":2,"t":3,"g":4,"y":5,"h":6,
                   "j":7,"i":8,"k":9,"o":10,"l":11,"p":12,"oslash":13,
                   "aring":14,"ae":15} 
 key_dict_misc = {"a":0,"s":1,"Shift_L":2,"Caps_Lock":3}
-chord_symb_dict_maj = {0:"I maj7",1:"ii m7",2:"iii m7",3:"IV maj7",4:"V m7",5:"vi m7",6:"vii m7b5",7:"I maj7"}
+chord_symb_dict_maj = {0:"Imaj7",1:"IIm7",2:"IIIm7",3:"IVmaj7",4:"V7",5:"VIm7",6:"VIIm7b5",7:"Imaj7"}
+chord_symb_dict_min = {0:"i m7",1:"ii m7b5",2:"III maj7",3:"iv m7",4:"v m7",5:"VI maj7",6:"VII m7",7:"i m7"}
 
 
 # Setting up dictionaries with correct keycodes -------------------------
@@ -343,6 +344,7 @@ def key_up(event):
         active_freqs = chord_freqs*(active_freqs > 10)
         just_pressed = np.ones(16)
 
+
 chord_freqs = set_chord_freqs(0)
 
 # Setting up tkinter
@@ -358,7 +360,9 @@ frame_2.pack()
 buttons = []
 button_font = font.Font(family="Times", size=18, weight="bold")
 for i in range(8):
-    buttons.append(tk.Button(frame_1, text=chord_symb_dict_maj[i], bg="blue", fg="white", width=8, height=4, font=button_font))
+    buttons.append(tk.Button(frame_1, text=chord_symb_dict_maj[i],
+                             bg="blue", fg="white", width=8, height=4,
+                             font=button_font))
     buttons[i].pack(padx=10, side=tk.LEFT)
 
 buttons[0].configure(bg="yellow", fg="black")
