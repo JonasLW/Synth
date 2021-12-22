@@ -14,7 +14,7 @@ import tkinter.font as font
 # TODO: Add sustain function
 # TODO: Add transpose function
 # TODO: Add custom keys functionality
-# TODO: Tone indicator light stick if chord (scale_degree) changes before they're let up. Fix this
+# TODO: Make u key function as a duplicate of j
 
 os.system('xset r off')
 
@@ -91,7 +91,7 @@ temp.mainloop()
 PyAudio = pyaudio.PyAudio     #initialize pyaudio
 
 
-base_freq = 2*np.pi*130.81  # Angular frequencies for performance, this this by option
+base_freq = 2*np.pi*261.63  # Angular frequencies for performance, this this by option
 semitones = np.empty(12)
 for i in range(12):
     semitones[i] = base_freq*ET_RATIO**i
@@ -315,15 +315,21 @@ def key_down(event):
         just_pressed[index] = 1
         counters[index] = 0
         tone_buttons[scale_degree+index].configure(bg="yellow")
+        if index%7 == 0:
+            tone_buttons[scale_degree+index].configure(bg="white")
     elif key in key_dict_scale:
-        chord_buttons[scale_degree].configure(bg="blue",fg="white")  # For GUI
         transition_flag = True
+        chord_buttons[scale_degree].configure(bg="blue",fg="white")  # For GUI
+        [tone_buttons[i].configure(bg="black") for i in range(21)]
         scale_degree = key_dict_scale[key]
         chord_buttons[scale_degree].configure(bg="yellow", fg="black")  # For GUI
         residual_freqs = np.copy(active_freqs)
         chord_freqs = set_chord_freqs(scale_degree)
         active_freqs = chord_freqs*(active_freqs > 10)
         just_pressed = np.ones(16)
+        for i in range(16):
+            if active_freqs[i] > 10:
+                tone_buttons[scale_degree+i].configure(bg="yellow")
     elif key in key_dict_misc:
         transition_flag = True
         action = key_dict_misc[key]
