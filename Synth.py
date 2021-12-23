@@ -141,6 +141,11 @@ def sine_fade(f, t):
     fade_in = 1 - 1/(2*t/BUFFER_LENGTH + 1)  # Does not work as intended
     return np.sin(f*t)*0.5**(t/0.5)
 
+def sine_ramp_up(f, t):
+    t_rel = t/BUFFER_LENGTH
+    envelope = 4*t_rel/(t_rel+1)**2
+    return np.sin(f*t)*envelope
+
 def square(f, t):
     return signal.square(f*t)
 
@@ -330,6 +335,8 @@ def key_down(event):
         for i in range(16):
             if active_freqs[i] > 10:
                 tone_buttons[scale_degree+i].configure(bg="yellow")
+                if i%7 == 0:
+                    tone_buttons[scale_degree+i].configure(bg="white")
     elif key in key_dict_misc:
         transition_flag = True
         action = key_dict_misc[key]
@@ -446,7 +453,7 @@ button_font = font.Font(family="Times", size=18, weight="bold")
 for i in range(21):
     tone_buttons.append(tk.Button(frame_1, bg="black", fg="white",
                                   width=1, height=1))
-    tone_buttons[i].grid(row=3-i//7, column=i%7, pady=10)
+    tone_buttons[i].grid(row=3-i//7, column=i%7, pady=5)
 
 
 root.bind("<KeyPress>", key_down)
