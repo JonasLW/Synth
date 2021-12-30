@@ -15,8 +15,9 @@ import tkinter.font as font
 # TODO: Add transpose function
 # TODO: Add custom keys functionality
 # TODO: Make u key function as a duplicate of j
+# TODO: Add button for dominant chords
 
-os.system('xset r off')
+os.system('xset r off')  # Turning off key-repeat
 
 BITRATE = 16000     #number of frames per second/frameset.      
 BUFFER_LENGTH = 0.02  # Length of buffer in seconds
@@ -31,7 +32,7 @@ key_dict_scale = {"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7}
 key_dict_chord = {"d":0,"r":1,"f":2,"t":3,"g":4,"y":5,"h":6,
                   "j":7,"i":8,"k":9,"o":10,"l":11,"p":12,"oslash":13,
                   "aring":14,"ae":15} 
-key_dict_misc = {"a":0,"s":1,"Shift_L":2,"Caps_Lock":3}
+key_dict_misc = {"a":0,"s":1,"Shift_L":2,"Caps_Lock":3, "q":4}
 chord_symb_dict_maj = {0:"Imaj7",1:"IIm7",2:"IIIm7",3:"IVmaj7",4:"V7",5:"VIm7",6:"VIIm7b5",7:"Imaj7"}
 chord_symb_dict_min = {0:"Im7",1:"IIm7b5",2:"IIImaj7",3:"IVm7",4:"Vm7",5:"VImaj7",6:"VII7",7:"Im7"}
 chord_symb_dict = chord_symb_dict_maj
@@ -71,6 +72,12 @@ def standard_settings():
         temp.event_generate(f"<Key-{key}>")
     key_dict_misc = dict(zip(keycodes, values))
     temp.destroy()
+
+def custom_settings():
+    global keycodes
+    global values
+
+    label = tk.Label(temp, text="")
 
 temp = tk.Tk()
 temp.minsize(width=200, height=200)
@@ -131,6 +138,7 @@ data = no_sound
 save_data_0 = np.zeros(BUFFER_FRAMES_NR)
 save_data_1 = np.zeros(BUFFER_FRAMES_NR)
 mixed_flag = False
+dominant_flag = False
 scaling_factor = 1
 
 def sinewave(f, t):
@@ -289,7 +297,19 @@ def callback(in_data, frame_count, time_info, status):
 
 def set_chord_freqs(degree):
     global scale
-    freqs = scale[degree : degree+16]
+    global dominant_flag
+    freqs = np.copy(scale[degree : degree+16])
+    if dominant_flag:
+        base = scale[degree]
+        third = base*ET_RATIO**4
+        fifth = base*ET_RATIO**7
+        seventh = base*ET_RATIO**10
+        freqs[2] = third
+        freqs[4] = fifth
+        freqs[6] = seventh
+        freqs[9] = 2*third
+        freqs[11] = 2*fifth
+        freqs[13] = 2*seventh
     return freqs
 
 def key_down(event):
@@ -310,6 +330,7 @@ def key_down(event):
     global tone_buttons
     global chord_symb_dict
     global alt_chord_symb_dict
+    global dominant_flag
     # TODO: Change to switch-case?
     # Script does not enter this function when pressing 4 or 8 with 3+ chord tones playing
 
@@ -350,6 +371,8 @@ def key_down(event):
             scale, alt_scale = alt_scale, scale
             chord_symb_dict, alt_chord_symb_dict = alt_chord_symb_dict, chord_symb_dict
             [chord_buttons[i].configure(text=chord_symb_dict[i]) for i in range(8)]
+        elif action == 4:
+            dominant_flag = True
         residual_freqs = np.copy(active_freqs)
         chord_freqs = set_chord_freqs(scale_degree)
         active_freqs = chord_freqs*(active_freqs > 10)
@@ -372,6 +395,7 @@ def key_up(event):
     global tone_buttons
     global chord_symb_dict
     global alt_chord_symb_dict
+    global dominant_flag
 
     key = event.keycode
     if key in key_dict_chord:
@@ -391,6 +415,8 @@ def key_up(event):
             scale, alt_scale = alt_scale, scale
             chord_symb_dict, alt_chord_symb_dict = alt_chord_symb_dict, chord_symb_dict
             [chord_buttons[i].configure(text=chord_symb_dict[i]) for i in range(8)]
+        elif action == 4:
+            dominant_flag = False
         residual_freqs = np.copy(active_freqs)
         chord_freqs = set_chord_freqs(scale_degree)
         active_freqs = chord_freqs*(active_freqs > 10)
