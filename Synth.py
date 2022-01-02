@@ -15,7 +15,7 @@ import tkinter.font as font
 # TODO: Add transpose function
 # TODO: Add custom keys functionality
 # TODO: Make u key function as a duplicate of j
-# TODO: Add button for dominant chords
+# TODO: Add interface for changing waveform
 
 os.system('xset r off')  # Turning off key-repeat
 
@@ -175,6 +175,20 @@ def organ(f, t):
 
 def organ_fade(f, t):
     return organ(f,t)*0.5**(t/0.5)
+
+def bell(f, t):
+    return (0.05*np.sin(0.501*f*t)
+            + np.sin(f*t)
+            + 0.3*np.sin(2.005*f*t)
+            + 0.1*np.sin(3.01*f*t)
+            + 0.2*np.sin(3.99*f*t)
+            + 0.05*np.sin(5.01*f*t)
+            + 0.1*np.sin(8.1*f*t)
+            )/(0.05 + 1 + 0.3 + 0.1 + 0.2 + 0.05 + 0.1)
+
+def bell_fade(f, t):
+    return bell(f,t)*0.5**(t*5)
+
 
 def square_sine(f, t):
     return (signal.square(f*t) + 0.3*np.sin(f*t))/1.3
@@ -492,7 +506,7 @@ stream = p.open(format=pyaudio.paFloat32,
                 output=True,
                 stream_callback=callback,
                 frames_per_buffer=BUFFER_FRAMES_NR)
-mixing(sine_fade)
+mixing(bell_fade)
 root.mainloop()
 stream.stop_stream()
 stream.close()
