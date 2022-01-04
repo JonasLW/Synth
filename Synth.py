@@ -15,6 +15,7 @@ import tkinter.font as font
 # TODO: Add transpose function
 # TODO: Make u key function as a duplicate of j
 # TODO: Add interface for changing waveform
+# TODO: Add option to choose waveform
 
 os.system('xset r off')  # Turning off key-repeat
 
@@ -28,9 +29,8 @@ key_dict_scale = {"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7}
 # Extra chord tones for the sake of playing chord inversions.
 # Note: System from d-h is opposite of system from j-ø to make inversions simpler. Consider making these fit the pattern of the ordinary chord tones instead
 # Note that u and j presently give the same note (update: u has been disabled due to conflict with j)
-key_dict_chord = {"d":0,"r":1,"f":2,"t":3,"g":4,"y":5,"h":6,
-                  "j":7,"i":8,"k":9,"o":10,"l":11,"p":12,"oslash":13,
-                  "aring":14,"ae":15} 
+key_dict_chord = {"d":0,"r":1,"f":2,"t":3,"g":4,"y":5,"h":6,"u":7,
+                  "j":7,"i":8,"k":9,"o":10,"l":11,"p":12,"oslash":13,"aring":14} 
 key_dict_misc = {"a":0,"s":1,"Shift_L":2,"Caps_Lock":3, "q":4}
 key_dict_buffer = {}
 chord_symb_dict_maj = {0:"Imaj7",1:"IIm7",2:"IIIm7",3:"IVmaj7",4:"V7",5:"VIm7",6:"VIIm7b5",7:"Imaj7"}
@@ -95,8 +95,8 @@ def input_keys(index):
         text_label["text"] = ("Input the 16 keys you would like to use\n"
                               "for playing notes based on the current scale degree.\n"
                               "Default is...\n"
-                              "First octave:        d r f t g y h\n"
-                              "Second octave (+):   j i k o l p ø å æ")
+                              "First octave:        d r f t g y h u\n"
+                              "Second octave (+):   j i k o l p ø å")
     else:
         values = key_dict_misc.values()
         text_label["text"] = ("Input the 5 keys you would like to use\n"
@@ -236,6 +236,7 @@ just_pressed = np.zeros(number_of_notes)  #np.zeros((5,1))
 just_released = np.zeros(number_of_notes)  #np.zeros((5,1))
 counters = np.zeros(number_of_notes, dtype=np.int)
 residual_freqs = np.zeros(number_of_notes)
+double_press = np.zeros(number_of_notes)
 
 transition_flag = False
 ramp_up = np.linspace(0, 1, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile((5,1))
@@ -457,18 +458,22 @@ def key_down(event):
     global chord_symb_dict
     global alt_chord_symb_dict
     global dominant_flag
+    global double_press
     # TODO: Change to switch-case?
     # Script does not enter this function when pressing 4 or 8 with 3+ chord tones playing
 
     key = event.keycode
     if key in key_dict_chord:
         index = key_dict_chord[key]
-        active_freqs[index] = chord_freqs[index]
-        just_pressed[index] = 1
-        counters[index] = 0
-        tone_buttons[scale_degree+index].configure(bg="yellow")
-        if index%7 == 0:
-            tone_buttons[scale_degree+index].configure(bg="white")
+        if active_freqs[index] > 10:
+            double_press[index] = True
+        else:
+            active_freqs[index] = chord_freqs[index]
+            just_pressed[index] = 1
+            counters[index] = 0
+            tone_buttons[scale_degree+index].configure(bg="yellow")
+            if index%7 == 0:
+                tone_buttons[scale_degree+index].configure(bg="white")
     elif key in key_dict_scale:
         transition_flag = True
         chord_buttons[scale_degree].configure(bg="blue",fg="white")  # For GUI
@@ -522,12 +527,16 @@ def key_up(event):
     global chord_symb_dict
     global alt_chord_symb_dict
     global dominant_flag
+    global double_press
 
     key = event.keycode
     if key in key_dict_chord:
         index = key_dict_chord[key]
-        just_released[index] = 1
-        tone_buttons[scale_degree+index].configure(bg="black")
+        if double_press[index]:
+            double_press[index] = False
+        else:
+            just_released[index] = 1
+            tone_buttons[scale_degree+index].configure(bg="black")
     elif key in key_dict_misc:
         transition_flag = True
         action = key_dict_misc[key]
