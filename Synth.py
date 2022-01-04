@@ -13,7 +13,6 @@ import tkinter.font as font
 # TODO: Build ramp-up in to waveforms
 # TODO: Add sustain function
 # TODO: Add transpose function
-# TODO: Add custom keys functionality
 # TODO: Make u key function as a duplicate of j
 # TODO: Add interface for changing waveform
 
@@ -118,14 +117,45 @@ def input_keys(index):
     button_set_keys.grid(row=4, column=1)
     button_cancel.grid(row=4, column=0)
 
+def load_settings():
+    global key_dict_scale
+    global key_dict_chord
+    global key_dict_misc
+
+    scale_keycodes = np.loadtxt("scale_keys.txt")
+    chord_keycodes = np.loadtxt("chord_keys.txt")
+    misc_keycodes = np.loadtxt("misc_keys.txt")
+    key_dict_scale = dict(zip(scale_keycodes, key_dict_scale.values()))
+    key_dict_chord = dict(zip(chord_keycodes, key_dict_chord.values()))
+    key_dict_misc = dict(zip(misc_keycodes, key_dict_misc.values()))
+    message = tk.Label(temp, text="Setup loaded", bg="black", fg="white")
+    message.grid(row=1, column=1, padx=10, pady=10)
+
+def save_settings():
+    with open("scale_keys.txt", "w") as f:
+        for keycode in key_dict_scale.keys():
+            f.write(f"{keycode}\n")
+    with open("chord_keys.txt", "w") as f:
+        for keycode in key_dict_chord.keys():
+            f.write(f"{keycode}\n")
+    with open("misc_keys.txt", "w") as f:
+        for keycode in key_dict_misc.keys():
+            f.write(f"{keycode}\n")
+    message = tk.Label(temp, text="Setup saved", bg="black", fg="white")
+    message.grid(row=1, column=1, padx=10, pady=10)
+
 def custom_settings(button):
     button.destroy()
     button_scale = tk.Button(temp, height=1, width=15, text="Input scale keys", bg="blue", fg="white", command=lambda: input_keys(0))
     button_chord = tk.Button(temp, height=1, width=15, text="Input chord keys", bg="blue", fg="white", command=lambda: input_keys(1))
     button_misc = tk.Button(temp, height=1, width=15, text="Input misc keys", bg="blue", fg="white", command=lambda: input_keys(2))
+    button_load = tk.Button(temp, height=1, width=15, text="Load setup", bg="blue", fg="white", command=load_settings)
+    button_save = tk.Button(temp, height=1, width=15, text="Save setup", bg="blue", fg="white", command=save_settings)
     button_scale.grid(row=2, column=0, padx=10, pady=10)
     button_chord.grid(row=2, column=1, padx=10, pady=10)
     button_misc.grid(row=2, column=2, padx=10, pady=10)
+    button_load.grid(row=1, column=2, padx=10, pady=10)
+    button_save.grid(row=1, column=0, padx=10, pady=10)
 
 def standard_settings(button):
     global keycodes
