@@ -33,6 +33,7 @@ key_dict_chord = {"d":0,"r":1,"f":2,"t":3,"g":4,"y":5,"h":6,
                   "j":7,"i":8,"k":9,"o":10,"l":11,"p":12,"oslash":13,
                   "aring":14,"ae":15} 
 key_dict_misc = {"a":0,"s":1,"Shift_L":2,"Caps_Lock":3, "q":4}
+key_dict_buffer = {}
 chord_symb_dict_maj = {0:"Imaj7",1:"IIm7",2:"IIIm7",3:"IVmaj7",4:"V7",5:"VIm7",6:"VIIm7b5",7:"Imaj7"}
 chord_symb_dict_min = {0:"Im7",1:"IIm7b5",2:"IIImaj7",3:"IVm7",4:"Vm7",5:"VImaj7",6:"VII7",7:"Im7"}
 chord_symb_dict = chord_symb_dict_maj
@@ -46,15 +47,96 @@ values = []
 
 def get_keycode(event):
     global keycodes
-    keycodes.append(event.keycode)
+    global counter
+    global count_string
 
-def standard_settings():
+    if event.keycode not in keycodes:
+        keycodes.append(event.keycode)
+        counter += 1
+        count_string.set(f"Keys pressed: {counter}")
+
+def set_keys(index, text_label, count_label, button_set, button_cancel):
+    global key_dict_scale
+    global key_dict_chord
+    global key_dict_misc
+    global keycodes
+    global values
+    
+    if index == 0:
+        key_dict_scale = dict(zip(keycodes, values))
+    elif index == 1:
+        key_dict_chord = dict(zip(keycodes, values))
+    elif index == 2:
+        key_dict_misc = dict(zip(keycodes, values))
+    else:
+        pass
+    text_label.destroy()
+    count_label.destroy()
+    button_set.destroy()
+    button_cancel.destroy()
+
+def input_keys(index):
+    global counter
+    global count_string
+    global keycodes
+    global values
+
+    counter = 0
+    count_string.set(f"Keys pressed: {counter}")
+    keycodes = []
+    text_label = tk.Label(temp, bg="black", fg="white", font="TkFixedFont", justify=tk.LEFT)
+    count_label = tk.Label(temp, textvariable=count_string, bg="black", fg="white")
+    if index == 0:
+        values = key_dict_scale.values()
+        text_label["text"] = ("Input the 8 keys you would like to use\n"
+                              "for swapping between different scale degrees.\n"
+                              "Default: 1 2 3 4 5 6 7 8")
+    elif index == 1:
+        values = key_dict_chord.values()
+        text_label["text"] = ("Input the 16 keys you would like to use\n"
+                              "for playing notes based on the current scale degree.\n"
+                              "Default is...\n"
+                              "First octave:        d r f t g y h\n"
+                              "Second octave (+):   j i k o l p ø å æ")
+    else:
+        values = key_dict_misc.values()
+        text_label["text"] = ("Input the 5 keys you would like to use\n"
+                              "for the following actions (in order):\n"
+                              "Action                          Default key\n"
+                              "-------------------------------------------\n"
+                              "Flat notes                      a\n"
+                              "Sharp notes                     s\n"
+                              "Minor/Major scale (hold)        Shift\n"
+                              "Minor/Major scale (permanent)   CapsLock\n"
+                              "Dominant chords                 q")
+    text_label.grid(row=3, column=1, pady=10)
+    count_label.grid(row=4, column=2)
+    button_set_keys = tk.Button(temp, text="Set keys", bg="blue", fg="white")
+    button_set_keys["command"] = lambda: set_keys(index, text_label, count_label, button_set_keys, button_cancel)
+    button_cancel = tk.Button(temp, text="Cancel", bg="blue", fg="white")
+    button_cancel["command"] = lambda: set_keys(3, text_label, count_label, button_set_keys, button_cancel)
+    button_set_keys.grid(row=4, column=1)
+    button_cancel.grid(row=4, column=0)
+
+def custom_settings(button):
+    button.destroy()
+    button_scale = tk.Button(temp, height=1, width=15, text="Input scale keys", bg="blue", fg="white", command=lambda: input_keys(0))
+    button_chord = tk.Button(temp, height=1, width=15, text="Input chord keys", bg="blue", fg="white", command=lambda: input_keys(1))
+    button_misc = tk.Button(temp, height=1, width=15, text="Input misc keys", bg="blue", fg="white", command=lambda: input_keys(2))
+    button_scale.grid(row=2, column=0, padx=10, pady=10)
+    button_chord.grid(row=2, column=1, padx=10, pady=10)
+    button_misc.grid(row=2, column=2, padx=10, pady=10)
+
+def standard_settings(button):
     global keycodes
     global values
     global key_dict_scale
     global key_dict_chord
     global key_dict_misc
 
+    button.destroy()
+    keycodes = []
+    values = []
     for key in key_dict_scale.keys():
         values.append(key_dict_scale[key])
         temp.event_generate(f"<Key-{key}>")
@@ -71,23 +153,21 @@ def standard_settings():
         values.append(key_dict_misc[key])
         temp.event_generate(f"<Key-{key}>")
     key_dict_misc = dict(zip(keycodes, values))
-    temp.destroy()
 
-def custom_settings():
-    global keycodes
-    global values
+    button_1 = tk.Button(temp, height=1, width=10, text="Play", bg="blue", fg="white", command=lambda: temp.destroy())
+    button_2 = tk.Button(temp, height=1, width=10, text="Custom keys", bg="blue", fg="white",  command=lambda: custom_settings(button_2))
+    button_1.grid(row=0, column=1, padx=30, pady=30)
+    button_2.grid(row=1, column=1, padx=30)
 
-    label = tk.Label(temp, text="")
-
+   
 temp = tk.Tk()
 temp.minsize(width=200, height=200)
 temp.title("Settings")
 temp.configure(bg="black", width=500, height=500)
 temp.bind("<Key>", get_keycode)
-button_1 = tk.Button(temp, height=1, width=10, text="Standard keys", bg="blue", fg="white", command=standard_settings)
-button_2 = tk.Button(temp, height=1, width=10, text="Custom keys", bg="blue", fg="white",  command=standard_settings)
-button_1.pack(pady=30)
-button_2.pack()
+menu_button = tk.Button(temp, height=1, width=10, text="Main menu", bg="blue", fg="white", command=lambda: standard_settings(menu_button))
+menu_button.pack(pady=30)
+count_string = tk.StringVar(temp)
 temp.mainloop()
 
 # ^ Setting up dictionaries with correct keycodes ---------------------------
@@ -120,11 +200,13 @@ alt_scale = np.copy(minor_scale)
 scale = np.copy(default_scale)
 scale_degree = 0
 
-active_freqs = np.zeros(16)  #np.zeros((5,1))
-just_pressed = np.zeros(16)  #np.zeros((5,1))
-just_released = np.zeros(16)  #np.zeros((5,1))
-counters = np.zeros(16, dtype=np.int)
-residual_freqs = np.zeros(16)
+number_of_notes = len(key_dict_chord)
+active_freqs = np.zeros(number_of_notes)  #np.zeros((5,1))
+just_pressed = np.zeros(number_of_notes)  #np.zeros((5,1))
+just_released = np.zeros(number_of_notes)  #np.zeros((5,1))
+counters = np.zeros(number_of_notes, dtype=np.int)
+residual_freqs = np.zeros(number_of_notes)
+
 transition_flag = False
 ramp_up = np.linspace(0, 1, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile((5,1))
 ramp_down = np.linspace(1, 0, BUFFER_FRAMES_NR, endpoint=False, dtype=np.float32)  # tile(5,1)
@@ -261,7 +343,7 @@ def mixing(wave_cb):
                 temp_data += wave_cb(f, t+time_passed)*ramp_down/rel_intensity
                 residual_freqs[i] = 0
             transition_flag = False
-            residual_freqs = np.zeros(16)
+            residual_freqs = np.zeros(number_of_notes)
 
         for i, f in enumerate(active_freqs):
             if f < 10:
@@ -280,7 +362,7 @@ def mixing(wave_cb):
             else:
                 temp_data += wave_cb(f, t+time_passed)/rel_intensity
 
-        just_released = np.zeros(16)
+        just_released = np.zeros(number_of_notes)
         old_scaling_factor = scaling_factor
         scaling_factor =  1/max(1, np.sum(active_freqs > 10))  # Number of "oscillators", min 1
         #scaling_factor = 1/(1+np.sqrt(np.sum(active_freqs > 10)))
@@ -312,7 +394,7 @@ def callback(in_data, frame_count, time_info, status):
 def set_chord_freqs(degree):
     global scale
     global dominant_flag
-    freqs = np.copy(scale[degree : degree+16])
+    freqs = np.copy(scale[degree : degree+number_of_notes])
     if dominant_flag:
         base = scale[degree]
         third = base*ET_RATIO**4
@@ -366,8 +448,8 @@ def key_down(event):
         residual_freqs = np.copy(active_freqs)
         chord_freqs = set_chord_freqs(scale_degree)
         active_freqs = chord_freqs*(active_freqs > 10)
-        just_pressed = np.ones(16)
-        for i in range(16):
+        just_pressed = np.ones(number_of_notes)
+        for i in range(number_of_notes):
             if active_freqs[i] > 10:
                 tone_buttons[scale_degree+i].configure(bg="yellow")
                 if i%7 == 0:
@@ -390,7 +472,7 @@ def key_down(event):
         residual_freqs = np.copy(active_freqs)
         chord_freqs = set_chord_freqs(scale_degree)
         active_freqs = chord_freqs*(active_freqs > 10)
-        just_pressed = np.ones(16)
+        just_pressed = np.ones(number_of_notes)
 
 
 def key_up(event):
@@ -434,7 +516,7 @@ def key_up(event):
         residual_freqs = np.copy(active_freqs)
         chord_freqs = set_chord_freqs(scale_degree)
         active_freqs = chord_freqs*(active_freqs > 10)
-        just_pressed = np.ones(16)
+        just_pressed = np.ones(number_of_notes)
 
 def update_base_freq():
     global base_freq
